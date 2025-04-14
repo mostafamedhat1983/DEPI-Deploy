@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  labels:
+    tier: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      tier: app
+  template:
+    metadata:
+      labels:
+        tier: app
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: tier
+                  operator: In
+                  values:
+                  - app
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+      - name: init-mysql
+        image: mysql:8.0
+        command: ["sh", "-c"]
+        args:
+          - |
+           mysql --protocol=TCP --port=3306 --host=${DB_HOST} --user=${DB_USER} --password=${DB_PASS} ${DB_DATABASE} -e "CREATE TABLE IF NOT EXISTS tasks ( id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, description TEXT, is_complete BOOLEAN DEFAULT false );"
+      containers:
+      - name: app-container
+        image: ${new_image}
+        resources:
+          requests:
+            cpu: 300m
+            memory: 256Mi
+          limits:
+            cpu: 400m
+            memory: 512Mi
+        ports:
+        - containerPort: 5000
