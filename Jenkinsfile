@@ -84,10 +84,35 @@ pipeline {
                 ]) {
                     sh '''
                     kubectl apply -f ./k8s/metrics-server.yaml
-                    kubectl autoscale deployment app-deployment --cpu-percent=75 --min=2 --max=5
+                    kubectl apply -f ./k8s/app-hpa.yaml
                     '''
                 }
             }
         }
+
+ stage('Deploy Prometheus and Grafana') {
+            steps {
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-cred',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]
+                ]) {
+                    sh '''
+                    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+                    helm install prometheus prometheus-community/kube-prometheus-stack \
+                      --namespace monitoring \
+                      --create-namespace \
+                      --set alertmanager.persistentVolume.storageClass="gp2",server.persistentVolume.storageClass="gp2"
+                    kubectl apply -f  ./k8s/grafana-lb.yaml 
+                    '''
+                }
+            }
+        }
+
+
+        
     }
 }
