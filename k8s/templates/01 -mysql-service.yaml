@@ -1,0 +1,11 @@
+# aurora-external-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  type: ExternalName
+  externalName: {{ .Values.db_endpoint }}
+  ports:
+    - port: 3306
+
